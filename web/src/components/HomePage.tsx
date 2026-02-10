@@ -89,11 +89,23 @@ export function HomePage() {
 
   // Load server home/cwd on mount
   useEffect(() => {
-    api.getHome().then(({ home, cwd: serverCwd }) => {
-      if (!cwd) {
-        setCwd(serverCwd || home);
-      }
-    }).catch(() => {});
+    let mounted = true;
+    api.getHome()
+      .then(({ home, cwd: serverCwd }) => {
+        if (mounted && !cwd) {
+          setCwd(serverCwd || home);
+        }
+      })
+      .catch((err) => {
+        console.error("[HomePage] Failed to fetch home directory:", err);
+        // Set a default fallback
+        if (mounted && !cwd) {
+          setCwd("/");
+        }
+      });
+    return () => {
+      mounted = false;
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close dropdowns on outside click

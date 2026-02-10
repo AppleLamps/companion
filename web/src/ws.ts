@@ -385,8 +385,16 @@ function scheduleReconnect(sessionId: string) {
   const timer = setTimeout(() => {
     reconnectTimers.delete(sessionId);
     const store = useStore.getState();
-    if (store.currentSessionId === sessionId || store.sessions.has(sessionId)) {
+    // Double-check session still exists before reconnecting
+    const sdkSession = store.sdkSessions.find(s => s.sessionId === sessionId);
+    const sessionState = store.sessions.get(sessionId);
+    const isCurrentOrValid = store.currentSessionId === sessionId || sessionState;
+    
+    // Only reconnect if session exists and is not exited
+    if (isCurrentOrValid && (!sdkSession || sdkSession.state !== "exited")) {
       connectSession(sessionId);
+    } else {
+      console.log(`[ws] Skipping reconnect for session ${sessionId} (no longer valid)`);
     }
   }, 2000);
   reconnectTimers.set(sessionId, timer);
