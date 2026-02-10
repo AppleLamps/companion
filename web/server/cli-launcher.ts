@@ -292,16 +292,23 @@ export class CliLauncher {
     try {
       while (true) {
         // Add timeout to prevent indefinite blocking
+        let timeoutId: ReturnType<typeof setTimeout>;
         const readPromise = reader.read();
-        const timeoutPromise = new Promise<{ done: true; value: undefined }>((_, reject) => 
-          setTimeout(() => reject(new Error("Stream read timeout")), READ_TIMEOUT_MS)
-        );
+        const timeoutPromise = new Promise<{ done: true; value: undefined }>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error("Stream read timeout")), READ_TIMEOUT_MS);
+        });
         
-        const { done, value } = await Promise.race([readPromise, timeoutPromise]);
-        if (done) break;
-        const text = decoder.decode(value);
-        if (text.trim()) {
-          log(`[session:${sessionId}:${label}] ${text.trimEnd()}`);
+        try {
+          const { done, value } = await Promise.race([readPromise, timeoutPromise]);
+          clearTimeout(timeoutId!);
+          if (done) break;
+          const text = decoder.decode(value);
+          if (text.trim()) {
+            log(`[session:${sessionId}:${label}] ${text.trimEnd()}`);
+          }
+        } catch (err) {
+          clearTimeout(timeoutId!);
+          throw err;
         }
       }
     } catch (err) {

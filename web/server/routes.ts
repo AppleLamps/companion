@@ -6,6 +6,10 @@ import { realpath } from "node:fs/promises";
 import type { CliLauncher } from "./cli-launcher.js";
 import type { WsBridge } from "./ws-bridge.js";
 
+// Safe environment variables that can be set by users
+// HOME, USER, PATH excluded as they could be used for privilege escalation
+const ALLOWED_ENV_VARS = ["LANG", "LC_ALL", "LC_CTYPE", "TZ", "TERM"];
+
 export function createRoutes(launcher: CliLauncher, wsBridge: WsBridge) {
   const api = new Hono();
 
@@ -79,12 +83,11 @@ export function createRoutes(launcher: CliLauncher, wsBridge: WsBridge) {
         if (typeof body.env !== "object" || body.env === null || Array.isArray(body.env)) {
           return c.json({ error: "env must be an object" }, 400);
         }
-        // Only allow specific safe environment variables
-        const allowedEnvVars = ["LANG", "LC_ALL", "TZ"];
+        // Only allow specific safe environment variables (HOME, USER, PATH excluded for security)
         const validatedEnv: Record<string, string> = {};
         for (const [key, value] of Object.entries(body.env)) {
-          if (!allowedEnvVars.includes(key)) {
-            return c.json({ error: `Environment variable ${key} is not allowed` }, 400);
+          if (!ALLOWED_ENV_VARS.includes(key)) {
+            return c.json({ error: `Environment variable ${key} is not allowed. Allowed: ${ALLOWED_ENV_VARS.join(", ")}` }, 400);
           }
           if (typeof value !== "string") {
             return c.json({ error: `Environment variable ${key} must be a string` }, 400);

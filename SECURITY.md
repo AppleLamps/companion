@@ -14,8 +14,8 @@ This document outlines the security enhancements made to The Vibe Companion code
 - Applied same fix to git command execution in ws-bridge.ts
 
 **Files Modified**:
-- `web/server/cli-launcher.ts:100-107`
-- `web/server/ws-bridge.ts:355-363`
+- `web/server/cli-launcher.ts:100-110`
+- `web/server/ws-bridge.ts:395-405`
 
 **Prevention Pattern**: Always use `execFileSync()` or `spawn()` with array arguments instead of `execSync()` with string templates.
 

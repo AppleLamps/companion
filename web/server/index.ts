@@ -12,6 +12,9 @@ import { SessionStore } from "./session-store.js";
 import type { SocketData } from "./ws-bridge.js";
 import type { ServerWebSocket } from "bun";
 
+// UUID v4 format validation
+const UUID_REGEX = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const packageRoot = process.env.__VIBE_PACKAGE_ROOT || resolve(__dirname, "..");
 
@@ -71,7 +74,7 @@ const server = Bun.serve<SocketData>({
       // For browser connections, we allow connecting to sessions that might
       // not be registered yet in launcher (for restored sessions from disk)
       // but we validate the UUID format
-      if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(sessionId)) {
+      if (!UUID_REGEX.test(sessionId)) {
         console.warn(`[server] Rejected browser connection for invalid session ID: ${sessionId}`);
         return new Response("Invalid session ID format", { status: 400 });
       }
