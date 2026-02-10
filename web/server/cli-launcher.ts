@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { execSync } from "node:child_process";
+import { execSync, execFileSync } from "node:child_process";
 import type { Subprocess } from "bun";
 import type { SessionStore } from "./session-store.js";
 
@@ -95,9 +95,16 @@ export class CliLauncher {
     const cwd = options.cwd || process.cwd();
 
     let binary = options.claudeBinary || "claude";
+    
+    // Validate binary name to prevent command injection
+    if (!/^[a-zA-Z0-9_\-\/\.]+$/.test(binary)) {
+      throw new Error(`Invalid binary name: ${binary}`);
+    }
+    
     if (!binary.startsWith("/")) {
       try {
-        binary = execSync(`which ${binary}`, { encoding: "utf-8" }).trim();
+        // Use execFileSync instead of execSync to prevent command injection
+        binary = execFileSync("which", [binary], { encoding: "utf-8" }).trim();
       } catch {
         // fall through, hope it's in PATH
       }
@@ -289,8 +296,16 @@ export class CliLauncher {
           log(`[session:${sessionId}:${label}] ${text.trimEnd()}`);
         }
       }
-    } catch {
-      // stream closed
+    } catch (err) {
+      // Log stream errors but don't crash
+      console.error(`[session:${sessionId}:${label}] Stream error:`, err);
+    } finally {
+      // Ensure reader is released
+      try {
+        reader.releaseLock();
+      } catch {
+        // Reader may already be released
+      }
     }
   }
 
@@ -298,10 +313,16 @@ export class CliLauncher {
     const stdout = proc.stdout;
     const stderr = proc.stderr;
     if (stdout && typeof stdout !== "number") {
-      this.pipeStream(sessionId, stdout, "stdout");
+      // Properly handle the promise
+      this.pipeStream(sessionId, stdout, "stdout").catch((err) => {
+        console.error(`[session:${sessionId}] Failed to pipe stdout:`, err);
+      });
     }
     if (stderr && typeof stderr !== "number") {
-      this.pipeStream(sessionId, stderr, "stderr");
+      // Properly handle the promise
+      this.pipeStream(sessionId, stderr, "stderr").catch((err) => {
+        console.error(`[session:${sessionId}] Failed to pipe stderr:`, err);
+      });
     }
   }
 }

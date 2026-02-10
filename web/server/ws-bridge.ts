@@ -1,6 +1,6 @@
 import type { ServerWebSocket } from "bun";
 import { randomUUID } from "node:crypto";
-import { execSync } from "node:child_process";
+import { execSync, execFileSync } from "node:child_process";
 import type {
   CLIMessage,
   CLISystemInitMessage,
@@ -352,7 +352,8 @@ export class WsBridge {
       // Resolve git branch from session cwd
       if (session.state.cwd) {
         try {
-          session.state.git_branch = execSync("git rev-parse --abbrev-ref HEAD", {
+          // Use execFileSync to prevent command injection
+          session.state.git_branch = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
             cwd: session.state.cwd,
             encoding: "utf-8",
             timeout: 3000,
