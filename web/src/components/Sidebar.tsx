@@ -26,10 +26,12 @@ export function Sidebar() {
       try {
         const list = await api.listSessions();
         if (active) useStore.getState().setSdkSessions(list);
-      } catch {
-        // server not ready
+      } catch (err) {
+        // server not ready, log for debugging
+        console.error("[Sidebar] Failed to fetch sessions:", err);
       }
     }
+    // Await first poll to ensure we don't have race conditions
     poll();
     const interval = setInterval(poll, 5000);
     return () => {

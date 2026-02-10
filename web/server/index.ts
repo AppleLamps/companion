@@ -48,6 +48,14 @@ const server = Bun.serve<SocketData>({
     const cliMatch = url.pathname.match(/^\/ws\/cli\/([a-f0-9-]+)$/);
     if (cliMatch) {
       const sessionId = cliMatch[1];
+      
+      // Validate session exists before accepting WebSocket
+      const session = launcher.getSession(sessionId);
+      if (!session) {
+        console.warn(`[server] Rejected CLI connection for unknown session: ${sessionId}`);
+        return new Response("Session not found", { status: 404 });
+      }
+      
       const upgraded = server.upgrade(req, {
         data: { kind: "cli" as const, sessionId },
       });
@@ -59,6 +67,15 @@ const server = Bun.serve<SocketData>({
     const browserMatch = url.pathname.match(/^\/ws\/browser\/([a-f0-9-]+)$/);
     if (browserMatch) {
       const sessionId = browserMatch[1];
+      
+      // For browser connections, we allow connecting to sessions that might
+      // not be registered yet in launcher (for restored sessions from disk)
+      // but we validate the UUID format
+      if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(sessionId)) {
+        console.warn(`[server] Rejected browser connection for invalid session ID: ${sessionId}`);
+        return new Response("Invalid session ID format", { status: 400 });
+      }
+      
       const upgraded = server.upgrade(req, {
         data: { kind: "browser" as const, sessionId },
       });
@@ -105,3 +122,19 @@ console.log(`  Browser WebSocket: ws://localhost:${server.port}/ws/browser/:sess
 if (process.env.NODE_ENV !== "production") {
   console.log("Dev mode: frontend at http://localhost:5174");
 }
+
+// Graceful shutdown handling
+function shutdown(signal: string) {
+  console.log(`\n[server] Received ${signal}, shutting down gracefully...`);
+  
+  // Clean up debounce timers
+  sessionStore.cleanup();
+  
+  // Close all WebSocket connections
+  // Note: Bun's server.stop() will handle closing WebSocket connections
+  
+  process.exit(0);
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));

@@ -25,6 +25,14 @@ export class SessionStore {
     this.dir = dir || DEFAULT_DIR;
     mkdirSync(this.dir, { recursive: true });
   }
+  
+  /** Clean up all pending timers (call on shutdown) */
+  cleanup(): void {
+    for (const timer of this.debounceTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.debounceTimers.clear();
+  }
 
   private filePath(sessionId: string): string {
     return join(this.dir, `${sessionId}.json`);
