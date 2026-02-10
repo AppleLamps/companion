@@ -287,9 +287,17 @@ export class CliLauncher {
     const reader = stream.getReader();
     const decoder = new TextDecoder();
     const log = label === "stdout" ? console.log : console.error;
+    const READ_TIMEOUT_MS = 30000; // 30 seconds timeout for each read
+    
     try {
       while (true) {
-        const { done, value } = await reader.read();
+        // Add timeout to prevent indefinite blocking
+        const readPromise = reader.read();
+        const timeoutPromise = new Promise<{ done: true; value: undefined }>((_, reject) => 
+          setTimeout(() => reject(new Error("Stream read timeout")), READ_TIMEOUT_MS)
+        );
+        
+        const { done, value } = await Promise.race([readPromise, timeoutPromise]);
         if (done) break;
         const text = decoder.decode(value);
         if (text.trim()) {
@@ -298,7 +306,11 @@ export class CliLauncher {
       }
     } catch (err) {
       // Log stream errors but don't crash
-      console.error(`[session:${sessionId}:${label}] Stream error:`, err);
+      if (err instanceof Error && err.message === "Stream read timeout") {
+        console.warn(`[session:${sessionId}:${label}] Stream read timeout after ${READ_TIMEOUT_MS}ms`);
+      } else {
+        console.error(`[session:${sessionId}:${label}] Stream error:`, err);
+      }
     } finally {
       // Ensure reader is released
       try {
