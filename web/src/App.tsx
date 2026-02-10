@@ -6,6 +6,7 @@ import { TopBar } from "./components/TopBar.js";
 import { HomePage } from "./components/HomePage.js";
 import { TaskPanel } from "./components/TaskPanel.js";
 import { Playground } from "./components/Playground.js";
+import { ErrorBoundary } from "./components/ErrorBoundary.js";
 
 function useHash() {
   return useSyncExternalStore(
@@ -49,18 +50,24 @@ export default function App() {
           overflow-hidden
         `}
       >
-        <Sidebar />
+        <ErrorBoundary>
+          <Sidebar />
+        </ErrorBoundary>
       </div>
 
       {/* Main area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <TopBar />
+        <ErrorBoundary>
+          <TopBar />
+        </ErrorBoundary>
         <div className="flex-1 overflow-hidden">
-          {currentSessionId ? (
-            <ChatView sessionId={currentSessionId} />
-          ) : (
-            <HomePage key={homeResetKey} />
-          )}
+          <ErrorBoundary>
+            {currentSessionId ? (
+              <ChatView sessionId={currentSessionId} />
+            ) : (
+              <HomePage key={homeResetKey} />
+            )}
+          </ErrorBoundary>
         </div>
       </div>
 
@@ -83,7 +90,9 @@ export default function App() {
               overflow-hidden
             `}
           >
-            <TaskPanel sessionId={currentSessionId} />
+            <ErrorBoundary>
+              <TaskPanel sessionId={currentSessionId} />
+            </ErrorBoundary>
           </div>
         </>
       )}

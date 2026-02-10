@@ -200,8 +200,15 @@ export class WsBridge {
       let msg: CLIMessage;
       try {
         msg = JSON.parse(line);
-      } catch {
-        console.warn(`[ws-bridge] Failed to parse CLI message: ${line.substring(0, 200)}`);
+        
+        // Basic schema validation: ensure message has a type field
+        if (!msg || typeof msg !== "object" || !msg.type || typeof msg.type !== "string") {
+          console.warn(`[ws-bridge] Invalid CLI message structure: ${line.substring(0, 200)}`);
+          continue;
+        }
+        
+      } catch (err) {
+        console.warn(`[ws-bridge] Failed to parse CLI message: ${line.substring(0, 200)}`, err);
         continue;
       }
       this.routeCLIMessage(session, msg);
@@ -266,8 +273,42 @@ export class WsBridge {
     let msg: BrowserOutgoingMessage;
     try {
       msg = JSON.parse(data);
-    } catch {
-      console.warn(`[ws-bridge] Failed to parse browser message: ${data.substring(0, 200)}`);
+      
+      // Basic schema validation: ensure message has a type field
+      if (!msg || typeof msg !== "object" || !msg.type || typeof msg.type !== "string") {
+        console.warn(`[ws-bridge] Invalid browser message structure: ${data.substring(0, 200)}`);
+        return;
+      }
+      
+      // Validate specific message types
+      if (msg.type === "user_message") {
+        if (typeof msg.content !== "string") {
+          console.warn(`[ws-bridge] Invalid user_message: content must be a string`);
+          return;
+        }
+      } else if (msg.type === "permission_response") {
+        if (typeof msg.request_id !== "string" || typeof msg.behavior !== "string") {
+          console.warn(`[ws-bridge] Invalid permission_response: missing required fields`);
+          return;
+        }
+        if (!["allow", "deny"].includes(msg.behavior)) {
+          console.warn(`[ws-bridge] Invalid permission_response: behavior must be 'allow' or 'deny'`);
+          return;
+        }
+      } else if (msg.type === "set_model") {
+        if (typeof msg.model !== "string") {
+          console.warn(`[ws-bridge] Invalid set_model: model must be a string`);
+          return;
+        }
+      } else if (msg.type === "set_permission_mode") {
+        if (typeof msg.mode !== "string") {
+          console.warn(`[ws-bridge] Invalid set_permission_mode: mode must be a string`);
+          return;
+        }
+      }
+      
+    } catch (err) {
+      console.warn(`[ws-bridge] Failed to parse browser message: ${data.substring(0, 200)}`, err);
       return;
     }
 
